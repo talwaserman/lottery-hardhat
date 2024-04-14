@@ -1,0 +1,5 @@
+await c.createNewLottery(360, [1,2,3,4], 5, 'sepolia', {value: ethers.parseEther("0.5")})
+await c.createNewLottery(360, [1,2,3,4], 5, 'sepolia')
+await c.owner()
+const c = await CF.attach("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+const CF = await ethers.getContractFactory("Lottery")
