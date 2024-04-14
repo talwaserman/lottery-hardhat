@@ -1,7 +1,7 @@
-# Sample Hardhat Project
+# Lottery hardhat
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
-
+This project is used as a seed example of hardhat project with a contract that contains required tests and also integrate with a working DApp.
+Both projects were developed from the ground up by me.
 Try running some of the following tasks:
 
 ```shell
