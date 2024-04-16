@@ -1,9 +1,9 @@
-# Lottery hardhat
+# Crypto Lottery
+This project is used to enable eth holders to create and join lotteries.
+currently the lottery winning number is provided by the creator of the lottery and in a future upgrade
+adding random numbers will be supported too.
 
-This project is used as a seed example of hardhat project with a contract that contains required tests and also integrate with a working DApp.
-Both projects were developed from the ground up by me.
-Try running some of the following tasks:
-
+Available scripts:
 ```shell
 npx hardhat help
 npx hardhat test
