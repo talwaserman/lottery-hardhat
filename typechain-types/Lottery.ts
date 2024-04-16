@@ -8,6 +8,7 @@ import type {
   FunctionFragment,
   Result,
   Interface,
+  EventFragment,
   AddressLike,
   ContractRunner,
   ContractMethod,
@@ -17,6 +18,7 @@ import type {
   TypedContractEvent,
   TypedDeferredTopicFilter,
   TypedEventLog,
+  TypedLogDescription,
   TypedListener,
   TypedContractMethod,
 } from "./common";
@@ -76,6 +78,10 @@ export interface LotteryInterface extends Interface {
       | "getUserTickets"
       | "joinLottery"
   ): FunctionFragment;
+
+  getEvent(
+    nameOrSignatureOrTopic: "emitLotteryCreated" | "emitLotteryJoined"
+  ): EventFragment;
 
   encodeFunctionData(
     functionFragment: "checkIfIWonTheLottery",
@@ -174,6 +180,44 @@ export interface LotteryInterface extends Interface {
     functionFragment: "joinLottery",
     data: BytesLike
   ): Result;
+}
+
+export namespace emitLotteryCreatedEvent {
+  export type InputTuple = [
+    id: BigNumberish,
+    owner: AddressLike,
+    startTime: BigNumberish,
+    closeTime: BigNumberish
+  ];
+  export type OutputTuple = [
+    id: bigint,
+    owner: string,
+    startTime: bigint,
+    closeTime: bigint
+  ];
+  export interface OutputObject {
+    id: bigint;
+    owner: string;
+    startTime: bigint;
+    closeTime: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace emitLotteryJoinedEvent {
+  export type InputTuple = [id: BigNumberish, joinerAddress: AddressLike];
+  export type OutputTuple = [id: bigint, joinerAddress: string];
+  export interface OutputObject {
+    id: bigint;
+    joinerAddress: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
 }
 
 export interface Lottery extends BaseContract {
@@ -344,5 +388,42 @@ export interface Lottery extends BaseContract {
     "payable"
   >;
 
-  filters: {};
+  getEvent(
+    key: "emitLotteryCreated"
+  ): TypedContractEvent<
+    emitLotteryCreatedEvent.InputTuple,
+    emitLotteryCreatedEvent.OutputTuple,
+    emitLotteryCreatedEvent.OutputObject
+  >;
+  getEvent(
+    key: "emitLotteryJoined"
+  ): TypedContractEvent<
+    emitLotteryJoinedEvent.InputTuple,
+    emitLotteryJoinedEvent.OutputTuple,
+    emitLotteryJoinedEvent.OutputObject
+  >;
+
+  filters: {
+    "emitLotteryCreated(uint256,address,uint256,uint256)": TypedContractEvent<
+      emitLotteryCreatedEvent.InputTuple,
+      emitLotteryCreatedEvent.OutputTuple,
+      emitLotteryCreatedEvent.OutputObject
+    >;
+    emitLotteryCreated: TypedContractEvent<
+      emitLotteryCreatedEvent.InputTuple,
+      emitLotteryCreatedEvent.OutputTuple,
+      emitLotteryCreatedEvent.OutputObject
+    >;
+
+    "emitLotteryJoined(uint256,address)": TypedContractEvent<
+      emitLotteryJoinedEvent.InputTuple,
+      emitLotteryJoinedEvent.OutputTuple,
+      emitLotteryJoinedEvent.OutputObject
+    >;
+    emitLotteryJoined: TypedContractEvent<
+      emitLotteryJoinedEvent.InputTuple,
+      emitLotteryJoinedEvent.OutputTuple,
+      emitLotteryJoinedEvent.OutputObject
+    >;
+  };
 }

@@ -54,7 +54,7 @@ describe("Lottery", function () {
 
   async function deployLotteryWithLiveLotteryInstanceFixture() {
     const [owner, otherAccount] = await ethers.getSigners();
-    const startTime = new Date().getTime();
+    const startTime = Date.now();
     const endTime = startTime + 60;
 
     const LotteryFactory = await ethers.getContractFactory("Lottery");
@@ -89,8 +89,8 @@ describe("Lottery", function () {
     it("Should enable creation of lottery instance", async () => {
       const startTime = Date.now();
       const endTime = startTime + 60;
-      const { lotteryContract } = await loadFixture(deployLotteryFixture);
-      await lotteryContract.createNewLottery(
+      const { lotteryContract, owner } = await loadFixture(deployLotteryFixture);
+      expect(await lotteryContract.createNewLottery(
         startTime,
         endTime,
         [1, 2, 3, 4],
@@ -99,7 +99,9 @@ describe("Lottery", function () {
         {
           value: ETH_PRIZE1,
         }
-      );
+      )).to.emit(lotteryContract, "emitLotteryCreated")
+      .withArgs(1, owner, startTime, endTime);;
+
       const lotteries = await lotteryContract.getLotteries();
       expect(lotteries.length).to.equal(1);
       expect(lotteries[0].winningPrize).to.equal(ETH_PRIZE1);
@@ -127,7 +129,7 @@ describe("Lottery", function () {
 
     it("Should revert creation of lottery instance if endTime <= startTime", async () => {
       const { lotteryContract } = await loadFixture(deployLotteryFixture);
-      const startTime = new Date().getTime();
+      const startTime = Date.now();
       const endTime = startTime - 60;
       try {
         await lotteryContract.createNewLottery(
@@ -142,7 +144,6 @@ describe("Lottery", function () {
         );
         expect.fail("Expected function call to revert, but it did not");
       } catch (err: any) {
-        console.log(err);
         expect(err.message).to.contain("start time should be smaller then end time");
       }
     });
@@ -287,3 +288,13 @@ describe("Lottery", function () {
     });
   });
 });
+
+
+// add limit to creation of lottery to be max of 60
+// add function to remove lottery that are was finished -> if no winners collect the prize to the contract
+// prevent user from entering the same lottery more then once
+// change how join works, joiner ticket price money will increase the amount of the lottery prize
+// for each joiner to the lottery a base fee of 5% will be take from the amount of the ticket and the rest will be added to the prize
+// the fee will only be taken from joiners and not from the creator of the lottery
+// fees collected will be used to create new lotteries from time to time
+// add ability to create lottery that will start in the future, make sure it is created and in status not live

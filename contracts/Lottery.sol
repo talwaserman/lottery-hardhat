@@ -3,7 +3,7 @@
 pragma solidity 0.8.20;
 
 contract Lottery {
-    uint256 private lotteryCounter = 1;
+    uint256 private lotteryCounter = 0;
     address private contractOwner;
 
     struct LotteryTicket {
@@ -42,6 +42,9 @@ contract Lottery {
 
     mapping(address => UserInfo) participantsInLottery;
     LottryContest[] lotteries;
+
+    event emitLotteryCreated(uint256 indexed id, address indexed owner, uint256 startTime, uint256 closeTime);
+    event emitLotteryJoined(uint256 indexed id, address indexed joinerAddress);
 
     constructor() payable {
         contractOwner = msg.sender;
@@ -162,6 +165,8 @@ contract Lottery {
 
         userInfo.ticketIds.push(lotteryId);
 
+        emit emitLotteryJoined(lotteryId, msg.sender);
+
         return userticket;
     }
 
@@ -173,6 +178,8 @@ contract Lottery {
         uint256 minValueInWei = 0.01 * 1 ether;
         require(winningPrize >= minValueInWei, "value should be greater then 0.01");
         require(endTimeInSeconds > startTimeInSeconds, "start time should be smaller then end time");
+        
+        lotteryCounter++;
 
         LottryContest memory newContest = LottryContest({
             id: lotteryCounter,
@@ -187,7 +194,8 @@ contract Lottery {
             chainType: chainType
         });
         lotteries.push(newContest);
-        lotteryCounter++;
+
+        emit emitLotteryCreated(lotteryCounter, msg.sender, startTimeInSeconds, endTimeInSeconds);
         return true;
     }
 
