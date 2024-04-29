@@ -1,7 +1,4 @@
-import {
-  time,
-  loadFixture,
-} from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { describe } from "mocha";
@@ -33,21 +30,27 @@ const advanceTimeBy = async (seconds: number) => {
 
 const ETH_PRIZE1 = ethers.parseEther("0.5");
 
+const USER_NUMBER = ethers.solidityPackedKeccak256(["string"], ["7347"]);
+
 describe("Lottery", function () {
   async function deployLotteryFixture() {
-    // const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-    // const ONE_GWEI = 1_000_000_000;
-
-    // const lockedAmount = ONE_GWEI;
-    // const unlockTime = (await time.latest()) + ONE_YEAR_IN_SECS;
-
     // Contracts are deployed using the first signer/account by default
     const [owner, otherAccount] = await ethers.getSigners();
 
+    const VRFV2ProviderMockFactory = await ethers.getContractFactory(
+      "VRFV2ProviderMock"
+    );
+    const VRFV2ProviderMock: any = await VRFV2ProviderMockFactory.deploy(11073);
+
     const LotteryFactory = await ethers.getContractFactory("Lottery");
-    const lotteryContract = await LotteryFactory.deploy({
-      value: ethers.parseEther("1"),
-    });
+    const lotteryContract = await LotteryFactory.deploy(
+      VRFV2ProviderMock.target,
+      {
+        value: ethers.parseEther("1"),
+      }
+    );
+
+    await VRFV2ProviderMock.addToAllowList(lotteryContract.target);
 
     return { lotteryContract, owner, otherAccount };
   }
@@ -57,20 +60,22 @@ describe("Lottery", function () {
     const startTime = Date.now();
     const endTime = startTime + 60;
 
+    const VRFV2ProviderMockFactory = await ethers.getContractFactory(
+      "VRFV2ProviderMock"
+    );
+    const VRFV2ProviderMock: any = await VRFV2ProviderMockFactory.deploy(11073);
+
     const LotteryFactory = await ethers.getContractFactory("Lottery");
-    const lotteryContract = await LotteryFactory.deploy({
-      value: ethers.parseEther("1"),
-    });
-    await lotteryContract.createNewLottery(
-      startTime,
-      endTime,
-      [1, 2, 3, 4],
-      1,
-      "5",
+    const lotteryContract = await LotteryFactory.deploy(
+      VRFV2ProviderMock.target,
       {
-        value: ETH_PRIZE1,
+        value: ethers.parseEther("1"),
       }
     );
+    await VRFV2ProviderMock.addToAllowList(lotteryContract.target);
+    await lotteryContract.createNewLottery(startTime, endTime, 1, "Sepolia", {
+      value: ETH_PRIZE1,
+    });
 
     return { lotteryContract, owner, otherAccount };
   }
@@ -89,18 +94,22 @@ describe("Lottery", function () {
     it("Should enable creation of lottery instance", async () => {
       const startTime = Date.now();
       const endTime = startTime + 60;
-      const { lotteryContract, owner } = await loadFixture(deployLotteryFixture);
-      expect(await lotteryContract.createNewLottery(
-        startTime,
-        endTime,
-        [1, 2, 3, 4],
-        3,
-        "Sepolia",
-        {
-          value: ETH_PRIZE1,
-        }
-      )).to.emit(lotteryContract, "emitLotteryCreated")
-      .withArgs(1, owner, startTime, endTime);;
+      const { lotteryContract, owner } = await loadFixture(
+        deployLotteryFixture
+      );
+      expect(
+        await lotteryContract.createNewLottery(
+          startTime,
+          endTime,
+          3,
+          "Sepolia",
+          {
+            value: ETH_PRIZE1,
+          }
+        )
+      )
+        .to.emit(lotteryContract, "emitLotteryCreated")
+        .withArgs(1, owner, startTime, endTime);
 
       const lotteries = await lotteryContract.getLotteries();
       expect(lotteries.length).to.equal(1);
@@ -117,7 +126,6 @@ describe("Lottery", function () {
         await lotteryContract.createNewLottery(
           startTime,
           endTime,
-          [1, 2, 3, 4],
           3,
           "Sepolia"
         );
@@ -135,7 +143,6 @@ describe("Lottery", function () {
         await lotteryContract.createNewLottery(
           startTime,
           endTime,
-          [1, 2, 3, 4],
           3,
           "Sepolia",
           {
@@ -144,7 +151,9 @@ describe("Lottery", function () {
         );
         expect.fail("Expected function call to revert, but it did not");
       } catch (err: any) {
-        expect(err.message).to.contain("start time should be smaller then end time");
+        expect(err.message).to.contain(
+          "start time should be smaller then end time"
+        );
       }
     });
   });
@@ -156,14 +165,14 @@ describe("Lottery", function () {
       );
 
       try {
-        await lotteryContract.joinLottery("1", [1, 2, 3, 4]);
+        await lotteryContract.joinLottery("1", "7347");
         expect.fail("Expected function call to revert, but it did not");
       } catch (err: any) {
         expect(err.message).to.contain("lottery ticket costs 0.001 ether");
       }
 
       try {
-        await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+        await lotteryContract.joinLottery("1", "7347", {
           value: ethers.parseEther("0.0001"),
         });
         expect.fail("Expected function call to revert, but it did not");
@@ -173,14 +182,15 @@ describe("Lottery", function () {
     });
 
     it("Should prevent joining existing lottery instance for more then max allowed joiners", async () => {
-      const { lotteryContract, owner } = await loadFixture(
+      const { lotteryContract, owner, otherAccount } = await loadFixture(
         deployLotteryWithLiveLotteryInstanceFixture
       );
-      await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+      await lotteryContract.joinLottery("1", "7347", {
         value: ethers.parseEther("0.001"),
       });
+
       try {
-        await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+        await lotteryContract.connect(otherAccount).joinLottery("1", "7347", {
           value: ethers.parseEther("0.001"),
         });
         expect.fail("Expected function call to revert, but it did not");
@@ -195,7 +205,7 @@ describe("Lottery", function () {
       const { lotteryContract, owner } = await loadFixture(
         deployLotteryWithLiveLotteryInstanceFixture
       );
-      await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+      await lotteryContract.joinLottery("1", "7347", {
         value: ethers.parseEther("0.001"),
       });
       expect(
@@ -203,8 +213,9 @@ describe("Lottery", function () {
       ).to.equal("1");
       const contractNumbers = (
         await lotteryContract.getUserTicketForLottery("1")
-      ).numbers.map((n) => n.toString());
-      expect(contractNumbers).to.deep.equal(["1", "2", "3", "4"]);
+      ).number;
+      console.log("contractNumbers: ", contractNumbers);
+      expect(contractNumbers).to.equal(USER_NUMBER);
       expect(
         (await lotteryContract.getUserTicketForLottery("1")).owner
       ).to.equal(owner);
@@ -213,14 +224,33 @@ describe("Lottery", function () {
       ).to.equal(1);
     });
 
-    it("check that if numbers equal winning numbers, the user is marked as a winner", async () => {
+    it("checkIfIWonTheLottery - fail since random number was not added to lottery", async () => {
       const { lotteryContract, owner } = await loadFixture(
         deployLotteryWithLiveLotteryInstanceFixture
       );
-      await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+      await lotteryContract.joinLottery("1", "7347", {
         value: ethers.parseEther("0.001"),
       });
       expect(await lotteryContract.checkIfLotteryIsLiveById("1")).to.be.true;
+      try {
+        await lotteryContract.checkIfIWonTheLottery("1");
+        expect.fail("Expected function call to revert, but it did not");
+      } catch (err: any) {
+        expect(err.message).to.contain(
+          "random number was not added to the lottery"
+        );
+      }
+    });
+
+    it("checkIfIWonTheLottery - check that if numbers equal winning numbers, the user is marked as a winner", async () => {
+      const { lotteryContract, owner } = await loadFixture(
+        deployLotteryWithLiveLotteryInstanceFixture
+      );
+      await lotteryContract.joinLottery("1", "7347", {
+        value: ethers.parseEther("0.001"),
+      });
+      expect(await lotteryContract.checkIfLotteryIsLiveById("1")).to.be.true;
+      expect(await lotteryContract.getWinningNumberForLottery("1"));
       expect(await lotteryContract.checkIfIWonTheLottery("1")).to.be.true;
     });
   });
@@ -241,7 +271,7 @@ describe("Lottery", function () {
       );
       await advanceTimeBy(65);
       try {
-        await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+        await lotteryContract.joinLottery("1", "7347", {
           value: ethers.parseEther("0.001"),
         });
         expect.fail("Expected function call to revert, but it did not");
@@ -259,7 +289,7 @@ describe("Lottery", function () {
         deployLotteryWithLiveLotteryInstanceFixture
       );
 
-      await lotteryContract.joinLottery("1", [1, 2, 3, 4], {
+      await lotteryContract.joinLottery("1", "7347", {
         value: ethers.parseEther("0.001"),
       });
 
@@ -289,6 +319,16 @@ describe("Lottery", function () {
   });
 });
 
+// IMPORTANT - hash the numbers selected when creating a lottery and also for joiners numbers
+// const dataBytes = ethers.utils.toUtf8Bytes(data);
+// const hash = ethers.utils.keccak256(dataBytes);
+// then in solidity compare the hashes.
+
+// IMPORTANT - winning number can't be created by the user since he can game the system and use other characters for the shu256
+// IMPORTANT - we need to think how we can hide the random number result from the contract transaction since users can potentially brute force
+// check each combination of 4 numbers and see if it is the same as the hash result.
+// so maybe the random number will only be returned when the lottery has ended, then it will call chainlink VRF and get the random number,
+// and only then the contract will check to see if there are winners.
 
 // add limit to creation of lottery to be max of 60
 // add function to remove lottery that are was finished -> if no winners collect the prize to the contract
@@ -298,3 +338,5 @@ describe("Lottery", function () {
 // the fee will only be taken from joiners and not from the creator of the lottery
 // fees collected will be used to create new lotteries from time to time
 // add ability to create lottery that will start in the future, make sure it is created and in status not live
+// prevent creator of lottery from joining that lottery
+// add ability to extend lottery that ended only by lottery creator
